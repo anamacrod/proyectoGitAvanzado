@@ -1,0 +1,25 @@
+name: Prueba Token Self-hosted
+
+on:
+  push:
+    branches: [ "*" ]
+
+jobs:
+  comprobar-tokens:
+    runs-on: self-hosted
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Comparar DEV_TOKEN con LOCAL_DEV_TOKEN
+        env:
+          SECRET_DEV: ${{ secrets.DEV_TOKEN }}
+        run: |
+          echo "Comprobando tokens..."
+          if [ "$SECRET_DEV" = "$LOCAL_DEV_TOKEN" ]; then
+            echo "Los tokens coinciden correctamente."
+            exit 0
+          else
+            echo "ERROR Los tokens NO coinciden."
+            exit 1
+          fi
