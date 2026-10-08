@@ -1,0 +1,48 @@
+name: CI Workflow
+
+on:
+  push:
+    branches: [ "develop" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ "develop" ]
+  workflow_dispatch:
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Modificar README.md
+        run: |
+          echo "Añadida feature: ${{ github.head_ref || github.ref_name }}" >> README.md
+
+      - name: Guardar cambios en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "ci: actualizar README.md con nueva feature" || echo "Sin cambios"
+          git push
+
+  validate-dev:
+    needs: update-readme
+    runs-on: self-hosted
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Validar DEV_TOKEN
+        env:
+          SECRET_DEV: ${{ secrets.DEV_TOKEN }}
+        run: |
+          Write-Host "Comprobando DEV_TOKEN..."
+          if ($env:SECRET_DEV -eq $env:LOCAL_DEV_TOKEN) {
+            Write-Host "¡ÉXITO! Los tokens de DEV coinciden."
+            exit 0
+          } else {
+            Write-Host "¡ERROR! Los tokens de DEV NO coinciden."
+            exit 1
+          }

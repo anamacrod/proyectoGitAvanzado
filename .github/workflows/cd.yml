@@ -1,0 +1,50 @@
+name: CD Workflow
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Incrementar versión en README.md
+        run: |
+          FECHA=$(date +'%Y-%m-%d %H:%M:%S')
+          sed -i 's/AppVersion-0/AppVersion-1/' README.md
+          echo "Desplegado en producción: $FECHA" >> README.md
+
+      - name: Guardar cambios en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "cd: bump de versión en README.md" || echo "Sin cambios"
+          git push
+
+  validate-prod:
+    needs: bump-version
+    runs-on: self-hosted
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Validar PROD_TOKEN
+        env:
+          SECRET_PROD: ${{ secrets.PROD_TOKEN }}
+        run: |
+          Write-Host "Comprobando PROD_TOKEN..."
+          if ($env:SECRET_PROD -eq $env:LOCAL_PROD_TOKEN) {
+            Write-Host "¡ÉXITO! Los tokens de PROD coinciden."
+            exit 0
+          } else {
+            Write-Host "¡ERROR! Los tokens de PROD NO coinciden."
+            exit 1
+          }
