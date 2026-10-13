@@ -4,28 +4,32 @@ on:
   push:
     branches: [ "develop" ]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
     branches: [ "develop" ]
   workflow_dispatch:
 
 jobs:
   update-readme:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Modificar README.md
-        run: |
-          echo "Añadida feature: ${{ github.head_ref || github.ref_name }}" >> README.md
-
-      - name: Guardar cambios en el repositorio
+      - name: Actualizar README con la feature
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          echo "Añadida feature: $BRANCH_NAME" >> README.md
           git add README.md
-          git commit -m "ci: actualizar README.md con nueva feature" || echo "Sin cambios"
-          git push
+          git commit -m "docs: añadir registro de feature $BRANCH_NAME en README" || exit 0
+          git pull origin develop --rebase || true
+          git push origin develop
 
   validate-dev:
     needs: update-readme
@@ -34,15 +38,11 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Validar DEV_TOKEN
-        env:
-          SECRET_DEV: ${{ secrets.DEV_TOKEN }}
+      - name: Validar DEV_TOKEN contra variable local
         run: |
-          Write-Host "Comprobando DEV_TOKEN..."
-          if ($env:SECRET_DEV -eq $env:LOCAL_DEV_TOKEN) {
-            Write-Host "¡ÉXITO! Los tokens de DEV coinciden."
-            exit 0
-          } else {
-            Write-Host "¡ERROR! Los tokens de DEV NO coinciden."
+          if [ "$LOCAL_DEV_TOKEN" == "${{ secrets.DEV_TOKEN }}" ]; then
+            echo "Validación de DEV_TOKEN correcta."
+          else
+            echo "Error: LOCAL_DEV_TOKEN no coincide con DEV_TOKEN."
             exit 1
-          }
+          fi
